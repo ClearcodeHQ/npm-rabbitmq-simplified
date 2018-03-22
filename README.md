@@ -122,3 +122,19 @@ Connector.assertAndConsumeQueue(
     queueOptions // optional queue options, defaults are the same as in assertQueue
 );
 ```
+
+### Publishing helper
+
+Calls `channel.publish` with empty routing key by default and options that make the message persistent (which means it will be stored in case of RabbitMQ shutdown) and it's delivery mandatory (which means that exchange must have a way to route it to a queue, otherwise it will fail and return false).
+
+It is a synchronous method and returns true on successful publish or false if something went wrong.
+
+```
+Connector.publishMessage(
+    channel, // channel obtained from createChannel method on which the message should be sent to RabbitMQ
+    exchange, // string with exchange name, must be asserted beforehand
+    message, // string with the message to publish
+    routingKey, // optional routing key, empty by default
+    options // optional message options, by default the message is persistent and it's delivery is mandatory
+);
+```
