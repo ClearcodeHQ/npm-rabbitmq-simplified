@@ -12,13 +12,13 @@ beforeEach(function() {
   FakeAmqp.connect = sinon.stub();
 
   global.RabbitMQ = proxyquire('./../../rabbitmq-simplified.js', {
-    'synchronous-timeout': timeout,
+    '@clearcodehq/synchronous-timeout': timeout,
     amqplib: FakeAmqp,
   });
 });
 
-describe('Elasticsearch connector', async function() {
-  describe('#Connector.connectToElasticsearch', function() {
+describe('RabbitMQ connector', async function() {
+  describe('#Connector.connectToRabbit', function() {
     it('Should not wait if not specified', async function() {
       FakeAmqp.connect = sinon.stub();
       FakeAmqp.connect = sinon.stub().returns(Promise.resolve());
@@ -34,10 +34,10 @@ describe('Elasticsearch connector', async function() {
       FakeAmqp.connect = sinon.stub().returns(Promise.resolve());
 
       const Connector = new RabbitMQ();
-      await Connector.connectToRabbit(5000);
+      await Connector.connectToRabbit(50);
 
       assert.isTrue(timeout.called);
-      assert.isTrue(timeout.calledWith(5000));
+      assert.isTrue(timeout.calledWith(50));
     });
 
     it('Should double the wait time for subsequent calls', async function() {
@@ -46,11 +46,11 @@ describe('Elasticsearch connector', async function() {
       FakeAmqp.connect.onCall(1).returns(Promise.reject({stack: ''}));
       FakeAmqp.connect.returns(Promise.resolve());
 
-      const Connector = new RabbitMQ();
+      const Connector = new RabbitMQ({retryAfter:50});
       await Connector.connectToRabbit();
 
-      let firstTimeout = timeout.withArgs(5000);
-      let secondTimeout = timeout.withArgs(10000);
+      let firstTimeout = timeout.withArgs(50);
+      let secondTimeout = timeout.withArgs(100);
 
       assert.isTrue(firstTimeout.calledOnce);
       assert.isTrue(secondTimeout.calledOnce);
@@ -64,7 +64,7 @@ describe('Elasticsearch connector', async function() {
       FakeAmqp.connect.onCall(0).returns(Promise.reject({stack: ''}));
       FakeAmqp.connect.returns(Promise.resolve(FakeAmqpConnection));
 
-      const Connector = new RabbitMQ();
+      const Connector = new RabbitMQ({retryAfter:50});
       const result = await Connector.connectToRabbit();
 
       assert.equal(Connector.getConnectionRetryCount(), 1);
@@ -293,6 +293,102 @@ describe('Elasticsearch connector', async function() {
 
       const Connector = new RabbitMQ();
       await Connector.assertAndConsumeQueue(FakeRabbitChannel, queueName, function() {}, 5);
+    });
+  });
+  describe('#Connector.publishMessage', function() {
+    it('Returns true if message was published', async function() {
+      let exchangeName = 'exchange';
+      let message = 'some message';
+
+      let FakeRabbitChannel = {};
+      FakeRabbitChannel.publish = sinon.stub().returns(true);
+
+      const Connector = new RabbitMQ();
+      assert.isTrue(Connector.publishMessage(FakeRabbitChannel, exchangeName, message));
+    });
+
+    it('Returns false if message was not published', async function() {
+      let exchangeName = 'exchange';
+      let message = 'some message';
+
+      let FakeRabbitChannel = {};
+      FakeRabbitChannel.publish = sinon.stub().returns(false);
+
+      const Connector = new RabbitMQ();
+      assert.isFalse(Connector.publishMessage(FakeRabbitChannel, exchangeName, message));
+    });
+
+    it('Uses empty routing string by default', async function() {
+      let exchangeName = 'exchange';
+      let message = 'some message';
+
+      let FakeRabbitChannel = {};
+      FakeRabbitChannel.publish = sinon.mock()
+        .withArgs(
+          exchangeName,
+          '',
+          Buffer.from(message)
+        )
+        .returns(true);
+
+      const Connector = new RabbitMQ();
+      Connector.publishMessage(FakeRabbitChannel, exchangeName, message);
+    });
+
+    it('Uses provided routing string if specified', async function() {
+      let exchangeName = 'exchange';
+      let message = 'some message';
+      let routing = 'routing';
+
+      let FakeRabbitChannel = {};
+      FakeRabbitChannel.publish = sinon.mock()
+        .withArgs(
+          exchangeName,
+          routing,
+          Buffer.from(message)
+        )
+        .returns(true);
+
+      const Connector = new RabbitMQ();
+      Connector.publishMessage(FakeRabbitChannel, exchangeName, message, routing);
+    });
+
+    it('Sets persistent and mandatory options to true by default', async function() {
+      let exchangeName = 'exchange';
+      let message = 'some message';
+      let routing = 'routing';
+
+      let FakeRabbitChannel = {};
+      FakeRabbitChannel.publish = sinon.mock()
+        .withArgs(
+          exchangeName,
+          routing,
+          Buffer.from(message)
+        )
+        .returns(true);
+
+      const Connector = new RabbitMQ();
+      Connector.publishMessage(FakeRabbitChannel, exchangeName, message, routing, {persistent:true,mandatory:true});
+    });
+
+    it('Sets provided options if specified', async function() {
+      let exchangeName = 'exchange';
+      let message = 'some message';
+      let routing = 'routing';
+      let options = {priority:300};
+
+      let FakeRabbitChannel = {};
+      FakeRabbitChannel.publish = sinon.mock()
+        .withArgs(
+          exchangeName,
+          routing,
+          Buffer.from(message),
+          options
+        )
+        .returns(true);
+
+      const Connector = new RabbitMQ();
+      Connector.publishMessage(FakeRabbitChannel, exchangeName, message, routing, options);
     });
   });
 });

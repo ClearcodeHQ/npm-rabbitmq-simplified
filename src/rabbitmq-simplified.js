@@ -111,6 +111,15 @@ function Connector(userConfig) {
     return true;
   }
 
+  function publishMessage(channel, exchange, message, routingKey, options) {
+    return channel.publish(
+      exchange,
+      routingKey || '',
+      Buffer.from(message),
+      options || {persistent:true,mandatory:true}
+    );
+  }
+
   function getConnectionRetryCount() {
     return rabbitConnectionRetries;
   }
@@ -121,6 +130,7 @@ function Connector(userConfig) {
   this.assertQueue = assertQueue;
   this.bindQueueToExchange = bindQueueToExchange;
   this.assertAndConsumeQueue = assertAndConsumeQueue;
+  this.publishMessage = publishMessage;
   this.getConnectionRetryCount = getConnectionRetryCount;
 }
 
