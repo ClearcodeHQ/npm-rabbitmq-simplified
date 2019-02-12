@@ -20,12 +20,14 @@ function Connector(userConfig) {
     Object.assign(config, userConfig);
   }
 
+  let retryAfterBase = config.retryAfter;
+
   async function connectToRabbit(retryAfter) {
     console.log('Connecting to RabbitMQ');
 
     if (retryAfter) {
       await timeout(retryAfter);
-      config.retryAfter *= 2;
+      retryAfterBase *= 2;
     }
 
     return amqp.connect({
@@ -36,6 +38,10 @@ function Connector(userConfig) {
     })
       .then(function(connection) {
         console.log('Connected to RabbitMQ');
+
+        rabbitConnectionRetries = 0;
+        retryAfterBase = config.retryAfter;
+
         return connection;
       })
       .catch(function(exception) {
@@ -46,9 +52,9 @@ function Connector(userConfig) {
           );
           return null;
         } else {
-          console.warn(`Retrying connection to RabbitMQ after delay of ${config.retryAfter} ms`);
+          console.warn(`Retrying connection to RabbitMQ after delay of ${retryAfterBase} ms`);
           rabbitConnectionRetries++;
-          return connectToRabbit(config.retryAfter);
+          return connectToRabbit(retryAfterBase);
         }
       });
   }
@@ -111,15 +117,6 @@ function Connector(userConfig) {
     return true;
   }
 
-  function publishMessage(channel, exchange, message, routingKey, options) {
-    return channel.publish(
-      exchange,
-      routingKey || '',
-      Buffer.from(message),
-      options || {persistent:true,mandatory:true}
-    );
-  }
-
   function getConnectionRetryCount() {
     return rabbitConnectionRetries;
   }
@@ -130,7 +127,6 @@ function Connector(userConfig) {
   this.assertQueue = assertQueue;
   this.bindQueueToExchange = bindQueueToExchange;
   this.assertAndConsumeQueue = assertAndConsumeQueue;
-  this.publishMessage = publishMessage;
   this.getConnectionRetryCount = getConnectionRetryCount;
 }
 
