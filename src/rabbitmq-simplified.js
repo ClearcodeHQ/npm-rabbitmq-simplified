@@ -14,6 +14,7 @@ function Connector(userConfig) {
     port: process.env.RABBITMQ_PORT,
     maxRabbitConnectionRetries: 10,
     retryAfter: 5000,
+    retryAfterMultiplier: 2,
   };
 
   if (userConfig) {
@@ -27,7 +28,7 @@ function Connector(userConfig) {
 
     if (retryAfter) {
       await timeout(retryAfter);
-      retryAfterBase *= 2;
+      retryAfterBase *= config.retryAfterMultiplier;
     }
 
     return amqp.connect({
