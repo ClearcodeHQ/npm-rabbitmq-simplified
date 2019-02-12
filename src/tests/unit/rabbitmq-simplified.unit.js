@@ -62,14 +62,58 @@ describe('RabbitMQ connector', async function() {
 
       FakeAmqp.connect = sinon.stub();
       FakeAmqp.connect.onCall(0).returns(Promise.reject({stack: ''}));
+      FakeAmqp.connect.onCall(1).returns(Promise.reject({stack: ''}));
+      FakeAmqp.connect.onCall(2).returns(Promise.reject({stack: ''}));
+      FakeAmqp.connect.onCall(3).returns(Promise.reject({stack: ''}));
+      FakeAmqp.connect.onCall(4).returns(Promise.reject({stack: ''}));
+      FakeAmqp.connect.onCall(5).returns(Promise.resolve(FakeAmqpConnection));
+
+      const Connector = new RabbitMQ({retryAfter:50});
+      const result = await Connector.connectToRabbit();
+
+      assert.isObject(result);
+      assert.equal(FakeAmqpConnection, result);
+    });
+
+    it('Should reset maxRabbitConnectionRetries count when connection is established', async function() {
+      let FakeAmqpConnection = {connection: true};
+
+      FakeAmqp.connect = sinon.stub();
+      FakeAmqp.connect.onCall(0).returns(Promise.reject({stack: ''}));
       FakeAmqp.connect.returns(Promise.resolve(FakeAmqpConnection));
 
       const Connector = new RabbitMQ({retryAfter:50});
       const result = await Connector.connectToRabbit();
 
-      assert.equal(Connector.getConnectionRetryCount(), 1);
+      assert.equal(Connector.getConnectionRetryCount(), 0);
       assert.isObject(result);
       assert.equal(FakeAmqpConnection, result);
+    });
+
+    it('Should handle proper retryAfterMultiplier value equal 1 for reconnection', async function() {
+      let FakeAmqpConnection = {connection: true};
+
+      FakeAmqp.connect = sinon.stub();
+      FakeAmqp.connect.onCall(0).returns(Promise.reject({stack: ''}));
+      FakeAmqp.connect.onCall(1).returns(Promise.reject({stack: ''}));
+      FakeAmqp.connect.onCall(2).returns(Promise.resolve(FakeAmqpConnection));
+
+      const Connector = new RabbitMQ({retryAfter:50, retryAfterMultiplier: 1});
+      const result = await Connector.connectToRabbit();
+
+      assert.equal(Connector.getActiveRetryAfterValue(), 50);
+    });
+
+    it('Should handle proper retryAfterMultiplier value equal 2 for reconnection', async function() {
+      let FakeAmqpConnection = {connection: true};
+
+      FakeAmqp.connect = sinon.stub();
+      FakeAmqp.connect.returns(Promise.reject({stack: ''}));
+
+      const Connector = new RabbitMQ({retryAfter:50, retryAfterMultiplier: 2, maxRabbitConnectionRetries: 5});
+      const result = await Connector.connectToRabbit();
+
+      assert.equal(Connector.getActiveRetryAfterValue(), 1600);
     });
 
     it('Should return null if connection retry limit was reached', async function() {
