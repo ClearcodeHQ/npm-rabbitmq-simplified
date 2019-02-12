@@ -27,6 +27,7 @@ const config = {
     port: 5959, // by default process.env.RABBITMQ_PORT
     maxRabbitConnectionRetries: 5, // by default 10
     retryAfter: 3000 // in miliseconds, by default 5000
+    retryAfterMultiplier: 1 // by default 2
 }
 
 const Connector = new RabbitMQ(config);
