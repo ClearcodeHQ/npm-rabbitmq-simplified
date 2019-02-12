@@ -131,6 +131,10 @@ function Connector(userConfig) {
     return rabbitConnectionRetries;
   }
 
+  function getActiveRetryAfterValue() {
+    return retryAfterBase;
+  }
+
   this.connectToRabbit = connectToRabbit;
   this.createChannel = createChannel;
   this.assertExchange = assertExchange;
@@ -139,6 +143,7 @@ function Connector(userConfig) {
   this.assertAndConsumeQueue = assertAndConsumeQueue;
   this.getConnectionRetryCount = getConnectionRetryCount;
   this.publishMessage = publishMessage;
+  this.getActiveRetryAfterValue = getActiveRetryAfterValue;
 }
 
 module.exports = Connector;
